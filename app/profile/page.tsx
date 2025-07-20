@@ -7,7 +7,7 @@ import {
   INTERESTS_OPTIONS,
   LOOKING_FOR_OPTIONS,
   PROFILE_STEPS,
-} from "@/types/profile";
+} from "../../types/profile";
 
 export default function ProfilePage() {
   const router = useRouter();
