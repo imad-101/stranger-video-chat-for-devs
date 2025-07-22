@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 const Page = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -122,7 +123,7 @@ const Page = () => {
       <div className="relative z-10 max-w-6xl mx-auto text-center px-6 flex-1 flex flex-col items-center justify-center pt-20 lg:pt-0">
         {/* Hero Image */}
         <div className="mb-8 flex justify-center">
-          <img
+          <Image
             src="/heroimg.png"
             alt="Chat bubbles illustration"
             className="w-80 h-64 object-contain animate-bounce-slow"

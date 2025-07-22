@@ -34,8 +34,6 @@ import {
 } from "@/components/ui/collapsible";
 
 export function ProfileSidebar() {
-  const { state } = useSidebar(); // Access sidebar state for conditional rendering
-
   return (
     <>
       <SidebarHeader className="flex flex-col items-center pt-10 ">
