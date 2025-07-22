@@ -132,6 +132,20 @@ io.on("connection", (socket: Socket) => {
     }
   });
 
+  // Handle chat messages
+  socket.on("chat-message", (data: { text: string }) => {
+    const partnerId = activePairs.get(socket.id);
+    if (partnerId) {
+      socket.to(partnerId).emit("chat-message", {
+        text: data.text,
+        sender: "stranger",
+      });
+      console.log(
+        `💬 Chat message forwarded from ${socket.id} to ${partnerId}: "${data.text}"`
+      );
+    }
+  });
+
   // Handle disconnection
   socket.on("disconnect", () => {
     handleDisconnection(socket);

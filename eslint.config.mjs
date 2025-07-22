@@ -16,28 +16,32 @@ const eslintConfig = [
       "**/node_modules/**",
       "**/.next/**",
       "**/dist/**",
-      "**/app/generated/**",
-      "**/prisma/generated/**",
       "**/*.generated.*",
       "**/coverage/**",
-      "**/build/**"
-    ]
+      "**/build/**",
+    ],
   },
   {
     rules: {
-      "@typescript-eslint/no-unused-vars": ["error", { 
-        "argsIgnorePattern": "^_",
-        "varsIgnorePattern": "^_",
-        "ignoreRestSiblings": true 
-      }],
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
       "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-unused-expressions": ["error", {
-        "allowShortCircuit": true,
-        "allowTernary": true,
-        "allowTaggedTemplates": true
-      }]
-    }
-  }
+      "@typescript-eslint/no-unused-expressions": [
+        "error",
+        {
+          allowShortCircuit: true,
+          allowTernary: true,
+          allowTaggedTemplates: true,
+        },
+      ],
+    },
+  },
 ];
 
 export default eslintConfig;
