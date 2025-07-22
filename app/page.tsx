@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import Galaxy from "@/components/Galaxy";
 
 const Page = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -22,17 +23,21 @@ const Page = () => {
   };
 
   return (
-    <section
-      className="relative min-h-screen overflow-hidden flex flex-col bg-cover bg-center bg-no-repeat bg-fixed"
-      style={{ backgroundImage: "url(/background.png)" }}
-    >
+    <section className="relative min-h-screen overflow-hidden flex flex-col bg-black bg-cover bg-center bg-no-repeat bg-fixed ">
+      {/* Galaxy Background */}
+      <div className="fixed inset-0 z-0 pointer-events-none bg-black">
+        <Galaxy
+          mouseRepulsion={false}
+          mouseInteraction={false}
+          density={1}
+          glowIntensity={0.1}
+          saturation={0}
+          hueShift={0}
+        />
+      </div>
       {/* Navigation Bar */}
       <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          isScrolled
-            ? "bg-black/90 backdrop-blur-md shadow-lg"
-            : "bg-transparent"
-        }`}
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 `}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 lg:h-20">
@@ -100,7 +105,7 @@ const Page = () => {
             isMenuOpen ? "max-h-64 opacity-100" : "max-h-0 opacity-0"
           }`}
         >
-          <div className="bg-black/95 backdrop-blur-md border-t border-white/10">
+          <div className="bg-black border-t border-white/10">
             <div className="px-4 pt-4 pb-6 space-y-4">
               <Link
                 href="/about"
@@ -118,7 +123,6 @@ const Page = () => {
           </div>
         </div>
       </nav>
-
       {/* Main content */}
       <div className="relative z-10 max-w-6xl mx-auto text-center px-6 flex-1 flex flex-col items-center justify-center pt-20 lg:pt-0">
         {/* Hero Image */}
@@ -126,7 +130,8 @@ const Page = () => {
           <Image
             src="/heroimg.png"
             alt="Chat bubbles illustration"
-            className="w-80 h-64 object-contain animate-bounce-slow"
+            height={64}
+            width={82}
           />
         </div>
 
@@ -152,7 +157,6 @@ const Page = () => {
           </Link>
         </div>
       </div>
-
       {/* Custom CSS for animations */}
       <style jsx>{`
         @keyframes bounce-slow {
