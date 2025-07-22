@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import "./globals.css";
+import { ThemeProvider } from "next-themes";
 
 export const metadata: Metadata = {
   title: "DevChat - Meet Builders, Solve Problems, Have Fun",
@@ -14,12 +15,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body
-        className={` antialiased bg-[#0f0f11] text-[#F1F5F9] font-sans`}
-        suppressHydrationWarning
-      >
-        {children}
+    <html lang="en" suppressHydrationWarning>
+      <body className="antialiased font-sans">
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

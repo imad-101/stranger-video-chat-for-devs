@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { ArrowLeft, ArrowRight, CheckCircle, Users } from "lucide-react";
 import {
   ProfileData,
   INTERESTS_OPTIONS,
@@ -23,22 +25,10 @@ export default function ProfilePage() {
 
   const progress = ((currentStep + 1) / PROFILE_STEPS.length) * 100;
 
-  // Auto-save to localStorage
+  // Auto-save to in-memory state (localStorage removed for Claude compatibility)
   useEffect(() => {
-    const saved = localStorage.getItem("userProfile");
-    if (saved) {
-      try {
-        const parsedProfile = JSON.parse(saved);
-        setProfile(parsedProfile);
-      } catch (error) {
-        console.error("Failed to parse saved profile:", error);
-      }
-    }
+    // Profile data will persist in component state during session
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem("userProfile", JSON.stringify(profile));
-  }, [profile]);
 
   const nextStep = () => {
     if (currentStep < PROFILE_STEPS.length - 1) {
@@ -72,15 +62,6 @@ export default function ProfilePage() {
   const handleComplete = () => {
     // Validate final profile
     if (!canProceed()) return;
-
-    // Save complete profile
-    const completeProfile = {
-      ...profile,
-      completedAt: new Date().toISOString(),
-      profileComplete: true,
-    };
-
-    localStorage.setItem("userProfile", JSON.stringify(completeProfile));
 
     // Add some celebration before redirect
     setTimeout(() => {
@@ -123,7 +104,7 @@ export default function ProfilePage() {
                 setProfile((prev) => ({ ...prev, name: e.target.value }))
               }
               placeholder="Enter your name..."
-              className="w-full px-6 py-4 text-xl bg-[#1f1f23] border-2 border-[#6366F1]/30 rounded-xl focus:border-[#6366F1] focus:outline-none text-[#F1F5F9] placeholder-[#94A3B8] transition-all duration-300"
+              className="w-full px-6 py-4 text-xl bg-background border-2 border-input rounded-xl focus:border-primary focus:outline-none text-foreground placeholder-muted-foreground transition-all duration-300"
               autoFocus
             />
           </div>
@@ -141,10 +122,10 @@ export default function ProfilePage() {
               placeholder="Enter your age..."
               min="13"
               max="100"
-              className="w-full px-6 py-4 text-xl bg-[#1f1f23] border-2 border-[#6366F1]/30 rounded-xl focus:border-[#6366F1] focus:outline-none text-[#F1F5F9] placeholder-[#94A3B8] transition-all duration-300"
+              className="w-full px-6 py-4 text-xl bg-background border-2 border-input rounded-xl focus:border-primary focus:outline-none text-foreground placeholder-muted-foreground transition-all duration-300"
               autoFocus
             />
-            <p className="text-[#94A3B8] text-sm">
+            <p className="text-muted-foreground text-sm">
               You must be at least 13 years old to use this platform
             </p>
           </div>
@@ -153,13 +134,16 @@ export default function ProfilePage() {
       case 2:
         return (
           <div className="space-y-6">
-            <p className="text-[#94A3B8] text-lg text-center">
+            <p className="text-muted-foreground text-lg text-center">
               Select up to 8 interests that describe you:
             </p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {INTERESTS_OPTIONS.map((interest, index) => (
-                <button
+                <motion.button
                   key={interest}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
                   onClick={() => handleInterestToggle(interest)}
                   disabled={
                     !profile.interests.includes(interest) &&
@@ -167,27 +151,26 @@ export default function ProfilePage() {
                   }
                   className={`p-3 rounded-xl border-2 transition-all duration-300 hover:scale-105 text-sm font-medium ${
                     profile.interests.includes(interest)
-                      ? "border-[#6366F1] bg-[#6366F1]/20 text-[#F1F5F9] animate-pulse-soft"
+                      ? "border-primary bg-primary/20 text-foreground"
                       : profile.interests.length >= 8
-                      ? "border-[#6366F1]/10 bg-[#1f1f23]/50 text-[#94A3B8]/50 cursor-not-allowed"
-                      : "border-[#6366F1]/30 bg-[#1f1f23] text-[#94A3B8] hover:border-[#6366F1]/60 hover:text-[#F1F5F9]"
+                      ? "border-input/50 bg-background/50 text-muted-foreground/50 cursor-not-allowed"
+                      : "border-input bg-background text-muted-foreground hover:border-primary/60 hover:text-foreground"
                   }`}
-                  style={{ animationDelay: `${index * 50}ms` }}
                 >
                   {interest}
-                </button>
+                </motion.button>
               ))}
             </div>
             <div className="text-center">
-              <p className="text-[#94A3B8] text-sm">
+              <p className="text-muted-foreground text-sm">
                 Selected:{" "}
-                <span className="text-[#6366F1] font-semibold">
+                <span className="text-primary font-semibold">
                   {profile.interests.length}
                 </span>
                 /8 interests
               </p>
               {profile.interests.length >= 8 && (
-                <p className="text-[#FACC15] text-xs mt-1">
+                <p className="text-yellow-500 text-xs mt-1">
                   Maximum interests reached
                 </p>
               )}
@@ -208,17 +191,17 @@ export default function ProfilePage() {
 Example: 'I'm a full-stack developer passionate about creating user-friendly applications. Currently working on a React project and love discussing new technologies!'"
               rows={8}
               maxLength={500}
-              className="w-full px-6 py-4 text-lg bg-[#1f1f23] border-2 border-[#6366F1]/30 rounded-xl focus:border-[#6366F1] focus:outline-none text-[#F1F5F9] placeholder-[#94A3B8] transition-all duration-300 resize-none"
+              className="w-full px-6 py-4 text-lg bg-background border-2 border-input rounded-xl focus:border-primary focus:outline-none text-foreground placeholder-muted-foreground transition-all duration-300 resize-none"
               autoFocus
             />
             <div className="flex justify-between items-center">
               <p
                 className={`text-sm transition-colors duration-300 ${
                   profile.bio.length < 10
-                    ? "text-[#F87171]"
+                    ? "text-red-400"
                     : profile.bio.length > 450
-                    ? "text-[#FACC15]"
-                    : "text-[#94A3B8]"
+                    ? "text-yellow-500"
+                    : "text-muted-foreground"
                 }`}
               >
                 {profile.bio.length}/500 characters{" "}
@@ -226,13 +209,13 @@ Example: 'I'm a full-stack developer passionate about creating user-friendly app
               </p>
               <div className="flex gap-2">
                 {profile.bio.length >= 10 && (
-                  <span className="text-green-400">✓</span>
+                  <CheckCircle className="w-4 h-4 text-green-400" />
                 )}
                 {profile.bio.length >= 50 && (
-                  <span className="text-green-400">✓</span>
+                  <CheckCircle className="w-4 h-4 text-green-400" />
                 )}
                 {profile.bio.length >= 100 && (
-                  <span className="text-green-400">✓</span>
+                  <CheckCircle className="w-4 h-4 text-green-400" />
                 )}
               </div>
             </div>
@@ -242,7 +225,7 @@ Example: 'I'm a full-stack developer passionate about creating user-friendly app
       case 4:
         return (
           <div className="space-y-6">
-            <p className="text-[#94A3B8] text-lg">
+            <p className="text-muted-foreground text-lg">
               What brings you here today?
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -254,8 +237,8 @@ Example: 'I'm a full-stack developer passionate about creating user-friendly app
                   }
                   className={`p-4 rounded-xl border-2 transition-all duration-300 hover:scale-105 text-left ${
                     profile.lookingFor === option
-                      ? "border-[#6366F1] bg-[#6366F1]/20 text-[#F1F5F9]"
-                      : "border-[#6366F1]/30 bg-[#1f1f23] text-[#94A3B8] hover:border-[#6366F1]/60"
+                      ? "border-primary bg-primary/20 text-foreground"
+                      : "border-input bg-background text-muted-foreground hover:border-primary/60"
                   }`}
                 >
                   {option}
@@ -271,136 +254,144 @@ Example: 'I'm a full-stack developer passionate about creating user-friendly app
   };
 
   return (
-    <div className="min-h-screen overflow-hidden flex flex-col items-center justify-center relative">
-      {/* Background */}
-      <div className="absolute inset-0">
-        <div className="absolute inset-0 -z-10 h-full w-full bg-black [background:radial-gradient(125%_125%_at_50%_10%,#000_40%,#6366F1_100%)]"></div>
-
-        <svg
-          className="absolute inset-x-0 bottom-0 w-full h-32 -z-10"
-          viewBox="0 0 1440 320"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          preserveAspectRatio="none"
-        >
-          <path
-            fill="#6366F1"
-            fillOpacity="0.3"
-            d="M0,224L60,197.3C120,171,240,117,360,117.3C480,117,600,171,720,197.3C840,224,960,224,1080,197.3C1200,171,1320,117,1380,90.7L1440,64L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z"
-          />
-        </svg>
-      </div>
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center">
+      {/* Background with grid pattern matching landing page */}
+      <div className="absolute inset-0 -z-10 h-full w-full bg-white dark:bg-black bg-[linear-gradient(to_right,#f0f0f0_1px,transparent_1px),linear-gradient(to_bottom,#f0f0f0_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#1f1f1f_1px,transparent_1px),linear-gradient(to_bottom,#1f1f1f_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)]"></div>
 
       {/* Main Content */}
-      <div className="relative z-10 w-full max-w-2xl mx-auto px-6">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl lg:text-6xl font-black mb-4">
-            <span className="bg-gradient-to-r from-[#F1F5F9] to-[#6366F1] bg-clip-text text-transparent">
-              Complete Your
-            </span>
-            <br />
-            <span className="bg-gradient-to-r from-[#FACC15] to-[#F1F5F9] bg-clip-text text-transparent">
-              Profile
-            </span>
-          </h1>
-          <p className="text-[#94A3B8] text-lg">
-            Help us match you with the right people
-          </p>
-        </div>
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 md:px-6">
+        <div className="max-w-2xl mx-auto">
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-12"
+          >
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+              Complete Your Profile
+            </h1>
+            <p className="text-lg md:text-xl text-muted-foreground">
+              Help us match you with the right people
+            </p>
+          </motion.div>
 
-        {/* Progress Bar */}
-        <div className="mb-8 animate-fade-in-up">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-[#94A3B8] text-sm">
-              Step {currentStep + 1} of {PROFILE_STEPS.length}
-            </span>
-            <span className="text-[#6366F1] text-sm font-semibold">
-              {Math.round(progress)}%
-            </span>
-          </div>
-          <div className="w-full bg-[#1f1f23] rounded-full h-3 overflow-hidden">
-            <div
-              className="gradient-button h-3 rounded-full transition-all duration-700 ease-out"
-              style={{ width: `${progress}%` }}
-            ></div>
-          </div>
-        </div>
+          {/* Progress Bar */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="mb-8"
+          >
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-muted-foreground text-sm">
+                Step {currentStep + 1} of {PROFILE_STEPS.length}
+              </span>
+              <span className="text-primary text-sm font-semibold">
+                {Math.round(progress)}%
+              </span>
+            </div>
+            <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-primary to-primary/70 h-3 rounded-full transition-all duration-700 ease-out"
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+          </motion.div>
 
-        {/* Question Card */}
-        <div
-          className={`bg-[#1f1f23]/80 backdrop-blur-sm border border-[#6366F1]/30 rounded-2xl p-8 mb-8 transition-all duration-300 animate-fade-in-up ${
-            isAnimating ? "opacity-50 scale-95" : "opacity-100 scale-100"
-          }`}
-        >
-          <div className="text-center mb-6">
-            <h2 className="text-2xl lg:text-3xl font-bold text-[#F1F5F9] mb-2">
-              {PROFILE_STEPS[currentStep].title}
-            </h2>
-            {PROFILE_STEPS[currentStep].subtitle && (
-              <p className="text-[#94A3B8] text-lg">
-                {PROFILE_STEPS[currentStep].subtitle}
-              </p>
-            )}
-          </div>
-
-          {renderStep()}
-        </div>
-
-        {/* Navigation */}
-        <div className="flex justify-between items-center">
-          <button
-            onClick={prevStep}
-            disabled={currentStep === 0}
-            className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
-              currentStep === 0
-                ? "bg-[#1f1f23] text-[#94A3B8] cursor-not-allowed"
-                : "bg-[#1f1f23] border border-[#6366F1]/30 text-[#F1F5F9] hover:border-[#6366F1] hover:scale-105"
+          {/* Question Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className={`bg-background/80 backdrop-blur-sm border border-border rounded-2xl p-8 mb-8 shadow-2xl transition-all duration-300 ${
+              isAnimating ? "opacity-50 scale-95" : "opacity-100 scale-100"
             }`}
           >
-            Back
-          </button>
-
-          {currentStep === PROFILE_STEPS.length - 1 ? (
-            <button
-              onClick={handleComplete}
-              disabled={!canProceed()}
-              className={`px-8 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                canProceed()
-                  ? "bg-gradient-to-r from-[#6366F1] to-[#FACC15] text-white hover:scale-105 shadow-lg hover:shadow-[#6366F1]/25"
-                  : "bg-[#1f1f23] text-[#94A3B8] cursor-not-allowed"
-              }`}
-            >
-              Start Chatting! 🚀
-            </button>
-          ) : (
-            <button
-              onClick={nextStep}
-              disabled={!canProceed()}
-              className={`px-8 py-3 rounded-xl font-semibold transition-all cursor-pointer duration-300 ${
-                canProceed()
-                  ? "bg-gradient-to-r from-[#6366F1] to-[#FACC15] text-white hover:scale-105 shadow-lg hover:shadow-[#6366F1]/25"
-                  : "bg-[#1f1f23] text-[#94A3B8] cursor-not-allowed"
-              }`}
-            >
-              Next →
-            </button>
-          )}
-        </div>
-
-        {/* Fun Stats */}
-        <div className="text-center mt-8">
-          <div className="flex items-center justify-center gap-4 text-[#94A3B8] text-sm">
-            <div className="flex -space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-[#6366F1] to-[#14B8A6] rounded-full border-2 border-[#0f0f11] shadow-lg"></div>
-              <div className="w-8 h-8 bg-gradient-to-br from-[#14B8A6] to-[#FACC15] rounded-full border-2 border-[#0f0f11] shadow-lg"></div>
-              <div className="w-8 h-8 bg-gradient-to-br from-[#FACC15] to-[#6366F1] rounded-full border-2 border-[#0f0f11] shadow-lg"></div>
+            <div className="text-center mb-6">
+              <h2 className="text-2xl lg:text-3xl font-bold text-foreground mb-2">
+                {PROFILE_STEPS[currentStep].title}
+              </h2>
+              {PROFILE_STEPS[currentStep].subtitle && (
+                <p className="text-muted-foreground text-lg">
+                  {PROFILE_STEPS[currentStep].subtitle}
+                </p>
+              )}
             </div>
-            <span className="font-mono">
-              <span className="text-[#6366F1] font-bold">1,247</span> builders
-              waiting to chat
-            </span>
-          </div>
+
+            {renderStep()}
+          </motion.div>
+
+          {/* Navigation */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="flex justify-between items-center mb-8"
+          >
+            <button
+              onClick={prevStep}
+              disabled={currentStep === 0}
+              className={`inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                currentStep === 0
+                  ? "bg-muted text-muted-foreground cursor-not-allowed"
+                  : "bg-background border border-input text-foreground hover:bg-accent hover:scale-105"
+              }`}
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </button>
+
+            {currentStep === PROFILE_STEPS.length - 1 ? (
+              <button
+                onClick={handleComplete}
+                disabled={!canProceed()}
+                className={`inline-flex items-center justify-center px-8 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                  canProceed()
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 shadow-lg"
+                    : "bg-muted text-muted-foreground cursor-not-allowed"
+                }`}
+              >
+                Start Chatting! 🚀
+              </button>
+            ) : (
+              <button
+                onClick={nextStep}
+                disabled={!canProceed()}
+                className={`inline-flex items-center justify-center px-8 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                  canProceed()
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 shadow-lg"
+                    : "bg-muted text-muted-foreground cursor-not-allowed"
+                }`}
+              >
+                Next
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </button>
+            )}
+          </motion.div>
+
+          {/* Fun Stats */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="text-center"
+          >
+            <div className="flex items-center justify-center gap-4 text-muted-foreground text-sm">
+              <div className="flex -space-x-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-full border-2 border-background shadow-lg"></div>
+                <div className="w-8 h-8 bg-gradient-to-br from-secondary to-primary rounded-full border-2 border-background shadow-lg"></div>
+                <div className="w-8 h-8 bg-gradient-to-br from-primary/70 to-secondary/70 rounded-full border-2 border-background shadow-lg"></div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                <span className="font-mono">
+                  <span className="text-primary font-bold">1,247</span> builders
+                  waiting to chat
+                </span>
+              </div>
+            </div>
+          </motion.div>
         </div>
       </div>
     </div>
