@@ -136,12 +136,18 @@ io.on("connection", (socket: Socket) => {
   socket.on("chat-message", (data: { text: string }) => {
     const partnerId = activePairs.get(socket.id);
     if (partnerId) {
+      // To partner
       socket.to(partnerId).emit("chat-message", {
         text: data.text,
         sender: "stranger",
       });
+      // To sender (yourself)
+      socket.emit("chat-message", {
+        text: data.text,
+        sender: "you",
+      });
       console.log(
-        `💬 Chat message forwarded from ${socket.id} to ${partnerId}: "${data.text}"`
+        `💬 Chat message sent from ${socket.id} to ${partnerId} and echoed back to sender: "${data.text}"`
       );
     }
   });

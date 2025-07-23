@@ -437,7 +437,7 @@ export function VideoChatProvider({ children }: VideoChatProviderProps) {
           const newMessage: Message = {
             id: Date.now().toString(),
             text: data.text,
-            sender: "stranger",
+            sender: data.sender === "you" ? "you" : "stranger",
             timestamp: new Date(),
           };
           setMessages((prev) => [...prev, newMessage]);
@@ -527,15 +527,7 @@ export function VideoChatProvider({ children }: VideoChatProviderProps) {
 
   const sendMessage = (text: string) => {
     if (!socket || !text.trim()) return;
-
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text: text.trim(),
-      sender: "you",
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, newMessage]);
+    // Only emit to server; do not add to messages here.
     socket.emit("chat-message", { text: text.trim() });
   };
 
