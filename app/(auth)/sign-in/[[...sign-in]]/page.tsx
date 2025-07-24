@@ -82,9 +82,8 @@ export default function AuthPage() {
           <div className="absolute -bottom-20 -left-20 -z-10 h-[200px] w-[200px] rounded-full bg-gradient-to-br from-secondary/20 to-primary/20 blur-3xl opacity-60"></div>
 
           {/* Main auth card */}
-          <div className="bg-background/80 backdrop-blur-lg rounded-2xl border border-border/40 p-8 relative overflow-hidden">
+          <div className=" p-8 relative overflow-hidden">
             {/* Subtle gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-b from-background/10 to-muted/5 pointer-events-none"></div>
 
             <div className="relative z-10">
               {/* Header section */}
