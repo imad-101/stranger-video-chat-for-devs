@@ -14,9 +14,6 @@ import {
   Wifi,
   WifiOff,
   Video,
-  VideoOff,
-  Mic,
-  MicOff,
   Moon,
   Sun,
 } from "lucide-react";
