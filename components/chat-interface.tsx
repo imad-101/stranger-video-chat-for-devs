@@ -1,17 +1,12 @@
 "use client";
-import {
-  Sidebar,
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ProfileSidebar } from "./profile-sidebar";
+
 import { VideoStream } from "./video-stream";
 import { ChatSection } from "./chat-section";
-import { useVideoChat } from "./contexts/video-chat-context";
+import { useVideoChat } from "@/app/video-chat/contexts/video-chat-context";
 import { Play, UserX, SkipForward } from "lucide-react";
 
 export function ChatInterface() {
@@ -41,19 +36,31 @@ export function ChatInterface() {
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="flex min-h-svh w-full">
-        {/* Sidebar for Profile and Info */}
-        <Sidebar collapsible="icon">
-          <ProfileSidebar />
-        </Sidebar>
-
         {/* Main Content Area */}
         <SidebarInset className="flex flex-col flex-1 bg-white dark:bg-[#18181b] rounded-xl m-4 shadow-lg border border-border">
           {/* Header */}
           <header className="flex h-20 shrink-0 items-center gap-2 border-b px-6 bg-white dark:bg-zinc-900/80 rounded-t-xl shadow-sm">
-            <SidebarTrigger className="-ml-1 mr-2" variant="secondary" />
-            <Separator orientation="vertical" className="mr-2 h-6" />
+            {/* <SidebarTrigger className="-ml-1 mr-2" variant="secondary" /> */}
+            {/* <Separator orientation="vertical" className="mr-2 h-6" /> */}
             <h1 className="text-2xl font-bold tracking-tight">Random Chat</h1>
             <div className="ml-auto flex items-center gap-4">
+              <div className="relative group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full blur opacity-75 group-hover:opacity-100 transition duration-300" />
+                <div className="relative">
+                  <UserButton
+                    appearance={{
+                      elements: {
+                        avatarBox:
+                          "w-16 h-16 group-data-[state=collapsed]:w-10 group-data-[state=collapsed]:h-10",
+                      },
+                    }}
+                  />
+                  {/* Online indicator */}
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-background flex items-center justify-center">
+                    <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                  </div>
+                </div>
+              </div>
               <Badge
                 variant="outline"
                 className="flex items-center gap-2 px-3 py-1 text-base"

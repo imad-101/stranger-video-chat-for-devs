@@ -188,7 +188,14 @@ export function VideoChatProvider({ children }: VideoChatProviderProps) {
           iceServers: [
             { urls: "stun:stun.l.google.com:19302" },
             { urls: "stun:stun1.l.google.com:19302" },
+            { urls: "stun:stun2.l.google.com:19302" },
+            { urls: "stun:stun3.l.google.com:19302" },
+            { urls: "stun:stun4.l.google.com:19302" },
           ],
+          iceCandidatePoolSize: 10,
+          bundlePolicy: "max-bundle",
+          rtcpMuxPolicy: "require",
+          iceTransportPolicy: "all",
         });
         setPeer(pc);
 
@@ -196,47 +203,99 @@ export function VideoChatProvider({ children }: VideoChatProviderProps) {
         makingOffer = false;
         ignoreOffer = false;
         iceCandidateQueue = [];
+        let isPolite = false; // Will be set based on socket ID comparison
 
-        // Add connection timeout (30 seconds)
+        // Add connection timeout (20 seconds for faster reconnection)
         connectionTimeout = setTimeout(() => {
-          if (pc && !isConnected) {
+          if (
+            pc &&
+            pc.connectionState !== "connected" &&
+            pc.iceConnectionState !== "connected"
+          ) {
             console.log("⏰ Connection timeout - looking for new partner...");
             setStatus("Connection timeout. Looking for new partner...");
-            // Emit find-partner to get a new match
+
+            // Clean up current connection
+            if (pc) {
+              pc.close();
+              setPeer(null);
+            }
+
+            // Clear remote video
+            if (remoteVideoRef.current) {
+              remoteVideoRef.current.srcObject = null;
+            }
+
+            // Look for new partner
             sock.emit("find-partner");
           }
-        }, 30000);
+        }, 20000);
 
-        // Function to process queued ICE candidates
+        // Function to process queued ICE candidates with better error handling
         const processQueuedCandidates = async () => {
-          if (pc && pc.remoteDescription && iceCandidateQueue.length > 0) {
+          if (
+            pc &&
+            pc.remoteDescription &&
+            pc.remoteDescription.type &&
+            iceCandidateQueue.length > 0
+          ) {
             console.log(
               `🧊 Processing ${iceCandidateQueue.length} queued ICE candidates`
             );
-            for (const candidate of iceCandidateQueue) {
+
+            const candidatesToProcess = [...iceCandidateQueue];
+            iceCandidateQueue = []; // Clear queue immediately to prevent duplicates
+
+            for (const candidate of candidatesToProcess) {
               try {
-                await pc.addIceCandidate(candidate);
+                if (
+                  pc.signalingState !== "closed" &&
+                  pc.connectionState !== "closed"
+                ) {
+                  await pc.addIceCandidate(candidate);
+                  console.log("✅ Queued ICE candidate added successfully");
+                } else {
+                  console.log("⚠️ Skipping ICE candidate - connection closed");
+                  break;
+                }
               } catch (err) {
-                console.error("❌ Error adding queued ICE candidate:", err);
+                if (err instanceof Error) {
+                  console.error(
+                    "❌ Error adding queued ICE candidate:",
+                    err.message
+                  );
+                  // Don't break the loop, continue with other candidates
+                } else {
+                  console.error(
+                    "❌ Unknown error adding queued ICE candidate:",
+                    err
+                  );
+                }
               }
             }
-            iceCandidateQueue = [];
           }
         };
 
         // Add local stream tracks
         stream.getTracks().forEach((track) => {
+          console.log(`🎵 Adding ${track.kind} track to peer connection`);
           pc!.addTrack(track, stream);
         });
+        console.log("✅ All local tracks added to peer connection");
 
-        // Handle ICE candidates
+        // Handle ICE candidates with better timing
         pc.onicecandidate = (event) => {
           if (event.candidate) {
-            console.log("🧊 Sending ICE candidate");
+            console.log(
+              "🧊 Sending ICE candidate:",
+              event.candidate.candidate?.substring(0, 50) + "..."
+            );
             sock.emit("signal", {
               type: "ice",
               candidate: event.candidate,
             });
+          } else {
+            console.log("🧊 ICE gathering complete");
           }
         };
 
@@ -284,6 +343,10 @@ export function VideoChatProvider({ children }: VideoChatProviderProps) {
             console.log("✅ WebRTC connection established!");
             setStatus("Video call connected!");
             setIsConnected(true);
+            if (connectionTimeout) {
+              clearTimeout(connectionTimeout);
+              connectionTimeout = null;
+            }
           } else if (pc!.connectionState === "disconnected") {
             console.log("❌ WebRTC connection lost");
             setStatus("Connection lost. Looking for new partner...");
@@ -296,6 +359,18 @@ export function VideoChatProvider({ children }: VideoChatProviderProps) {
             console.log("💥 WebRTC connection failed");
             setStatus("Connection failed. Looking for new partner...");
             setIsConnected(false);
+            if (connectionTimeout) {
+              clearTimeout(connectionTimeout);
+              connectionTimeout = null;
+            }
+            // Auto-retry with new partner
+            setTimeout(() => {
+              if (pc) {
+                pc.close();
+                setPeer(null);
+              }
+              sock.emit("find-partner");
+            }, 2000);
           }
         };
 
@@ -307,28 +382,107 @@ export function VideoChatProvider({ children }: VideoChatProviderProps) {
             pc!.iceConnectionState === "completed"
           ) {
             console.log("✅ ICE connection established!");
-            if (connectionTimeout) clearTimeout(connectionTimeout);
+            if (connectionTimeout) {
+              clearTimeout(connectionTimeout);
+              connectionTimeout = null;
+            }
             if (!isConnected) {
               setStatus("Connected! You can now see each other.");
               setIsConnected(true);
             }
           } else if (pc!.iceConnectionState === "failed") {
             console.log("💥 ICE connection failed");
-            if (connectionTimeout) clearTimeout(connectionTimeout);
+            if (connectionTimeout) {
+              clearTimeout(connectionTimeout);
+              connectionTimeout = null;
+            }
             setStatus("Connection failed. Looking for new partner...");
             setIsConnected(false);
+
+            // Auto-retry with new partner after ICE failure
+            setTimeout(() => {
+              if (pc && pc.connectionState !== "connected") {
+                console.log("🔄 Auto-retrying after ICE failure...");
+                pc.close();
+                setPeer(null);
+                if (remoteVideoRef.current) {
+                  remoteVideoRef.current.srcObject = null;
+                }
+                sock.emit("find-partner");
+              }
+            }, 3000);
           } else if (pc!.iceConnectionState === "disconnected") {
             console.log("❌ ICE connection lost");
-            if (connectionTimeout) clearTimeout(connectionTimeout);
             setStatus("Connection lost. Looking for new partner...");
             setIsConnected(false);
+          } else if (pc!.iceConnectionState === "checking") {
+            console.log("🔍 ICE connection checking...");
+            setStatus("Establishing connection...");
           }
         };
 
-        // Perfect negotiation pattern
+        // Handle offer coordination response from server
+        sock.on("should-make-offer", (shouldMakeOffer: boolean) => {
+          isPolite = !shouldMakeOffer;
+          console.log(
+            `🤝 Polite peer role assigned: ${isPolite ? "polite" : "impolite"}`
+          );
+
+          // If we should make the offer, trigger negotiation
+          if (shouldMakeOffer && pc && pc.signalingState === "stable") {
+            console.log("🚀 Triggering initial negotiation as impolite peer");
+            // Small delay to ensure both peers are ready
+            setTimeout(async () => {
+              if (
+                pc &&
+                pc.signalingState === "stable" &&
+                !makingOffer &&
+                pc.connectionState !== "closed"
+              ) {
+                try {
+                  makingOffer = true;
+                  console.log("🤝 Creating initial offer...");
+
+                  const offer = await pc.createOffer({
+                    offerToReceiveAudio: true,
+                    offerToReceiveVideo: true,
+                  });
+
+                  // Double-check state before setting local description
+                  if (pc.signalingState === "stable" && makingOffer) {
+                    await pc.setLocalDescription(offer);
+                    sock.emit("signal", {
+                      type: "sdp",
+                      description: pc.localDescription,
+                    });
+                    console.log("📤 Initial offer sent successfully");
+                  } else {
+                    console.log(
+                      "⚠️ State changed during initial offer creation, aborting"
+                    );
+                    makingOffer = false;
+                  }
+                } catch (err) {
+                  console.error("❌ Error creating initial offer:", err);
+                  makingOffer = false;
+                }
+              } else {
+                console.log(
+                  "⚠️ Cannot create initial offer - invalid state or already making offer"
+                );
+              }
+            }, 1000);
+          }
+        });
+
+        // Perfect negotiation pattern with polite peer and better error handling
         pc.onnegotiationneeded = async () => {
           try {
-            if (makingOffer) return;
+            if (makingOffer) {
+              console.log("🚫 Skipping negotiation - already making offer");
+              return;
+            }
+
             if (pc!.signalingState !== "stable") {
               console.log(
                 "🚫 Skipping negotiation - not in stable state:",
@@ -337,87 +491,201 @@ export function VideoChatProvider({ children }: VideoChatProviderProps) {
               return;
             }
 
+            // Additional check to prevent race conditions
+            if (
+              pc!.connectionState === "closed" ||
+              pc!.connectionState === "failed"
+            ) {
+              console.log("🚫 Skipping negotiation - connection closed/failed");
+              return;
+            }
+
             makingOffer = true;
             console.log("🤝 Creating offer...");
-            await pc!.setLocalDescription();
-            sock.emit("signal", {
-              type: "sdp",
-              description: pc!.localDescription,
-            });
-            console.log("📤 Offer sent");
+
+            try {
+              // Create offer with explicit constraints
+              const offer = await pc!.createOffer({
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: true,
+              });
+
+              // Double-check if connection is still valid and we're still making offer
+              if (pc!.signalingState === "stable" && makingOffer) {
+                await pc!.setLocalDescription(offer);
+                sock.emit("signal", {
+                  type: "sdp",
+                  description: pc!.localDescription,
+                });
+                console.log("📤 Offer sent successfully");
+              } else {
+                console.log(
+                  "⚠️ Connection state changed during offer creation, aborting"
+                );
+                makingOffer = false;
+              }
+            } catch (err) {
+              console.error("❌ Error creating/sending offer:", err);
+              makingOffer = false;
+              throw err;
+            }
           } catch (err) {
             console.error("❌ Error during negotiation:", err);
-          } finally {
             makingOffer = false;
+          } finally {
+            // Ensure makingOffer is reset even if there's an unexpected error
+            if (pc!.signalingState === "stable") {
+              // Only reset if we're back to stable state
+              setTimeout(() => {
+                if (pc && pc.signalingState === "stable") {
+                  makingOffer = false;
+                }
+              }, 100);
+            }
           }
         };
 
-        // Handle incoming signals
+        // Handle incoming signals with proper polite peer logic
         sock.on(
           "signal",
           async (data: {
             type: string;
             description?: RTCSessionDescriptionInit;
             candidate?: RTCIceCandidate;
+            senderId?: string;
           }) => {
-            console.log("📡 Received signal:", data.type);
-            if (!pc) return;
+            console.log(
+              "📡 Received signal:",
+              data.type,
+              data.description?.type || ""
+            );
+            if (!pc || pc.signalingState === "closed") {
+              console.log("⚠️ Ignoring signal - no peer connection or closed");
+              return;
+            }
 
             try {
               if (data.type === "sdp" && data.description) {
                 const desc = data.description;
+                const isOffer = desc.type === "offer";
+                const isAnswer = desc.type === "answer";
 
                 console.log(
-                  `📋 Current signaling state: ${pc.signalingState}, received: ${desc.type}`
+                  `📋 Signaling state: ${pc.signalingState}, received: ${desc.type}, isPolite: ${isPolite}, makingOffer: ${makingOffer}`
                 );
 
-                // Handle offers and answers separately
-                if (desc.type === "offer") {
-                  const readyForOffer =
-                    !makingOffer &&
-                    (pc.signalingState === "stable" ||
-                      pc.signalingState === "have-local-offer");
-                  ignoreOffer = !readyForOffer;
+                // Validate connection state before processing
+                if (
+                  pc.connectionState === "closed" ||
+                  pc.connectionState === "failed"
+                ) {
+                  console.log(
+                    "⚠️ Ignoring signal - peer connection is closed/failed"
+                  );
+                  return;
+                }
 
-                  if (ignoreOffer) {
-                    console.log("🚫 Ignoring offer - not ready");
-                    return;
-                  }
-                } else if (desc.type === "answer") {
+                if (isAnswer) {
+                  // Special handling for answers - check if we're expecting one
                   if (pc.signalingState !== "have-local-offer") {
                     console.log(
-                      `🚫 Ignoring answer - wrong state: ${pc.signalingState}`
+                      `⚠️ Ignoring answer - not in correct state. Current state: ${pc.signalingState}, expected: have-local-offer`
+                    );
+                    return;
+                  }
+
+                  if (!makingOffer) {
+                    console.log(
+                      "⚠️ Ignoring answer - we weren't making an offer"
                     );
                     return;
                   }
                 }
 
-                if (pc.signalingState !== "closed") {
-                  console.log("📝 Setting remote description:", desc.type);
+                if (isOffer) {
+                  // Polite peer collision detection
+                  const offerCollision =
+                    desc.type === "offer" &&
+                    (makingOffer || pc.signalingState !== "stable");
+
+                  ignoreOffer = !isPolite && offerCollision;
+
+                  if (ignoreOffer) {
+                    console.log(
+                      "🚫 Ignoring offer due to collision (impolite peer)"
+                    );
+                    return;
+                  }
+
+                  // If we're making an offer and receive one, rollback if we're polite
+                  if (offerCollision && isPolite) {
+                    console.log("🔄 Rolling back local offer (polite peer)");
+                    try {
+                      await pc.setLocalDescription({ type: "rollback" });
+                      makingOffer = false;
+                    } catch (rollbackErr) {
+                      console.error("❌ Error during rollback:", rollbackErr);
+                      // Continue anyway, might still work
+                    }
+                  }
+                }
+
+                // Set remote description with additional validation
+                console.log(`📝 Setting remote description: ${desc.type}`);
+                try {
                   await pc.setRemoteDescription(desc);
+                  console.log(
+                    `✅ Remote description set successfully: ${desc.type}`
+                  );
+                } catch (setRemoteErr) {
+                  console.error(
+                    `❌ Error setting remote description (${desc.type}):`,
+                    setRemoteErr
+                  );
 
-                  await processQueuedCandidates();
+                  // Reset flags on error to prevent stuck states
+                  if (isAnswer) {
+                    makingOffer = false;
+                  }
+                  throw setRemoteErr;
+                }
 
-                  if (desc.type === "offer") {
-                    console.log("📤 Creating answer...");
-                    await pc.setLocalDescription();
+                // Process any queued ICE candidates
+                await processQueuedCandidates();
+
+                // Create answer if we received an offer
+                if (isOffer) {
+                  console.log("📤 Creating answer for received offer...");
+                  try {
+                    const answer = await pc.createAnswer();
+                    await pc.setLocalDescription(answer);
                     sock.emit("signal", {
                       type: "sdp",
                       description: pc.localDescription,
                     });
+                    console.log("✅ Answer sent successfully");
+                  } catch (err) {
+                    console.error("❌ Error creating answer:", err);
+                    throw err;
                   }
-                } else {
-                  console.log(
-                    "⚠️ Cannot set remote description - connection closed"
-                  );
+                }
+
+                // Reset makingOffer flag after successful answer processing
+                if (isAnswer) {
+                  console.log("🔄 Resetting makingOffer flag after answer");
+                  makingOffer = false;
                 }
               } else if (data.type === "ice" && data.candidate) {
-                if (pc.remoteDescription) {
-                  console.log("🧊 Adding ICE candidate");
+                // Handle ICE candidates
+                if (pc.remoteDescription && pc.remoteDescription.type) {
+                  console.log("🧊 Adding ICE candidate immediately");
                   try {
                     await pc.addIceCandidate(data.candidate);
+                    console.log("✅ ICE candidate added successfully");
                   } catch (err) {
-                    console.error("❌ Error adding ICE candidate:", err);
+                    if (!ignoreOffer) {
+                      console.error("❌ Error adding ICE candidate:", err);
+                    }
                   }
                 } else {
                   console.log(
@@ -428,6 +696,16 @@ export function VideoChatProvider({ children }: VideoChatProviderProps) {
               }
             } catch (err) {
               console.error("❌ Error handling signal:", err);
+              // Reset flags on error to prevent stuck states
+              if (
+                err instanceof Error &&
+                (err.name === "InvalidStateError" ||
+                  err.name === "OperationError")
+              ) {
+                console.log("🔄 Resetting signaling state due to error");
+                makingOffer = false;
+                ignoreOffer = false;
+              }
             }
           }
         );
@@ -437,7 +715,7 @@ export function VideoChatProvider({ children }: VideoChatProviderProps) {
           const newMessage: Message = {
             id: Date.now().toString(),
             text: data.text,
-            sender: data.sender === "you" ? "you" : "stranger",
+            sender: "stranger",
             timestamp: new Date(),
           };
           setMessages((prev) => [...prev, newMessage]);
@@ -469,30 +747,63 @@ export function VideoChatProvider({ children }: VideoChatProviderProps) {
   };
 
   const handleDisconnect = () => {
+    console.log("🔌 Disconnecting from chat...");
     setStatus("Disconnecting...");
     setInChat(false);
+    setIsConnected(false);
 
+    // Clean up peer connection
     if (peer) {
+      // Remove all event listeners
+      peer.onicecandidate = null;
+      peer.ontrack = null;
+      peer.onconnectionstatechange = null;
+      peer.oniceconnectionstatechange = null;
+      peer.onnegotiationneeded = null;
+      peer.ondatachannel = null;
+
       peer.close();
       setPeer(null);
+      console.log("✅ Peer connection closed");
     }
+
+    // Clean up socket connection
     if (socket) {
+      // Remove all event listeners
+      socket.off("signal");
+      socket.off("should-make-offer");
+      socket.off("partner-ready");
+      socket.off("chat-message");
+      socket.off("partner-disconnected");
+      socket.off("paired");
+      socket.off("waiting");
+
       socket.emit("disconnect-partner");
       socket.disconnect();
       setSocket(null);
+      console.log("✅ Socket disconnected");
     }
+
+    // Clean up video streams
     if (remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = null;
-    }
-    if (localStream) {
-      localStream.getTracks().forEach((track) => track.stop());
-      setLocalStream(null);
     }
     if (localVideoRef.current) {
       localVideoRef.current.srcObject = null;
     }
+    if (localStream) {
+      localStream.getTracks().forEach((track) => {
+        track.stop();
+        console.log(`🎥 Stopped ${track.kind} track`);
+      });
+      setLocalStream(null);
+    }
+
+    // Clear messages
+    setMessages([]);
 
     setStatus("Click 'Start Video Chat' to begin");
+    console.log("✅ Disconnect complete");
   };
 
   const handleNext = () => {
@@ -504,11 +815,15 @@ export function VideoChatProvider({ children }: VideoChatProviderProps) {
 
     // Close current peer connection properly
     if (peer) {
+      // Remove all event listeners to prevent memory leaks
       peer.onicecandidate = null;
       peer.ontrack = null;
       peer.onconnectionstatechange = null;
+      peer.oniceconnectionstatechange = null;
       peer.onnegotiationneeded = null;
+      peer.ondatachannel = null;
 
+      // Close the connection
       peer.close();
       setPeer(null);
     }
@@ -521,13 +836,26 @@ export function VideoChatProvider({ children }: VideoChatProviderProps) {
     // Clear messages for new chat
     setMessages([]);
 
+    // Remove old signal listeners to prevent conflicts
+    socket.off("signal");
+    socket.off("should-make-offer");
+    socket.off("partner-ready");
+
     console.log("🔍 Emitting find-partner for next person...");
     socket.emit("find-partner");
   };
 
   const sendMessage = (text: string) => {
     if (!socket || !text.trim()) return;
-    // Only emit to server; do not add to messages here.
+
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      text: text.trim(),
+      sender: "you",
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, newMessage]);
     socket.emit("chat-message", { text: text.trim() });
   };
 

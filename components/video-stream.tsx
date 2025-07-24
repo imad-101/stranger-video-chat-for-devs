@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { useVideoChat } from "./contexts/video-chat-context";
+import { useVideoChat } from "../app/video-chat/contexts/video-chat-context";
 
 interface VideoStreamProps {
   user: "You" | "Stranger";

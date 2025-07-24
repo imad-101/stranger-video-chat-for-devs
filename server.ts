@@ -106,6 +106,17 @@ io.on("connection", (socket: Socket) => {
       partner.socket.emit("paired");
 
       console.log(`📡 Paired notifications sent to both users`);
+
+      // Give a small delay for peer connections to be established, then trigger signaling
+      setTimeout(() => {
+        console.log(
+          `🚀 Triggering signaling coordination for pair: ${socket.id} ↔ ${partner.socket.id}`
+        );
+        // Use socket ID comparison to determine who should make the offer
+        const socketShouldMakeOffer = socket.id < partner.socket.id;
+        socket.emit("should-make-offer", socketShouldMakeOffer);
+        partner.socket.emit("should-make-offer", !socketShouldMakeOffer);
+      }, 2000);
     } else {
       // Add to waiting queue
       const user: User = {
@@ -121,13 +132,50 @@ io.on("connection", (socket: Socket) => {
     }
   });
 
-  // Forward WebRTC signaling messages to partner
+  // Forward WebRTC signaling messages to partner with validation
   socket.on("signal", (data: SignalData) => {
     const partnerId = activePairs.get(socket.id);
     if (partnerId) {
-      socket.to(partnerId).emit("signal", data);
+      // Add sender ID to help with debugging and prevent loops
+      const signalWithSender = {
+        ...data,
+        senderId: socket.id,
+      };
+
+      socket.to(partnerId).emit("signal", signalWithSender);
       console.log(
-        `📡 Signal forwarded from ${socket.id} to ${partnerId}: ${data.type}`
+        `📡 Signal forwarded from ${socket.id} to ${partnerId}: ${data.type}${
+          data.description ? ` (${data.description.type})` : ""
+        }`
+      );
+    } else {
+      console.warn(
+        `⚠️ No partner found for ${socket.id} when forwarding signal`
+      );
+    }
+  });
+
+  // Handle connection ready signal (when peer connection is established)
+  socket.on("connection-ready", () => {
+    const partnerId = activePairs.get(socket.id);
+    if (partnerId) {
+      socket.to(partnerId).emit("partner-ready");
+      console.log(
+        `✅ Connection ready signal sent from ${socket.id} to ${partnerId}`
+      );
+    }
+  });
+
+  // Handle offer/answer coordination to prevent glare
+  socket.on("request-offer", () => {
+    const partnerId = activePairs.get(socket.id);
+    if (partnerId) {
+      // Use socket ID comparison to determine who should make the offer
+      const shouldMakeOffer = socket.id < partnerId;
+      socket.emit("should-make-offer", shouldMakeOffer);
+      socket.to(partnerId).emit("should-make-offer", !shouldMakeOffer);
+      console.log(
+        `🤝 Offer coordination: ${socket.id} should make offer: ${shouldMakeOffer}`
       );
     }
   });
@@ -136,18 +184,12 @@ io.on("connection", (socket: Socket) => {
   socket.on("chat-message", (data: { text: string }) => {
     const partnerId = activePairs.get(socket.id);
     if (partnerId) {
-      // To partner
       socket.to(partnerId).emit("chat-message", {
         text: data.text,
         sender: "stranger",
       });
-      // To sender (yourself)
-      socket.emit("chat-message", {
-        text: data.text,
-        sender: "you",
-      });
       console.log(
-        `💬 Chat message sent from ${socket.id} to ${partnerId} and echoed back to sender: "${data.text}"`
+        `💬 Chat message forwarded from ${socket.id} to ${partnerId}: "${data.text}"`
       );
     }
   });

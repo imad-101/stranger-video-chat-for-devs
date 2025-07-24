@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { SignIn, SignUp } from "@clerk/nextjs";
 import { motion } from "framer-motion";
 import Image from "next/image";

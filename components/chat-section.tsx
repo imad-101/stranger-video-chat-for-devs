@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useVideoChat } from "./contexts/video-chat-context";
+import { useVideoChat } from "@/app/video-chat/contexts/video-chat-context";
 
 export function ChatSection() {
   const { messages, sendMessage, isConnected } = useVideoChat();
