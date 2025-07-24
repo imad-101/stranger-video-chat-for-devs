@@ -183,16 +183,6 @@ export default function AuthPage() {
               </motion.div>
             </div>
           </div>
-
-          {/* Bottom decorative text */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="text-center text-sm text-muted-foreground mt-6"
-          >
-            Connect with builders worldwide
-          </motion.p>
         </motion.div>
       </main>
     </div>
